@@ -1,8 +1,12 @@
+import pandas as pd
+
 from helper_functions import *
 from sklearn.model_selection import train_test_split
 from typing import List, Dict
 from sklearn.metrics import roc_auc_score
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
+
+planes = ["Sagittal", "Axial", "Coronal"]
 
 study_ids = os.listdir("train_series")
 
@@ -58,10 +62,10 @@ class Model:
                             fat_suppression=fat_suppression)
         self.train(x_train, y_train)
 
-        predictions = self.predict_instances(x_test)
+        predictions = self.predict_batch(x_test)
         self.auc_scores = roc_auc_score(y_test, predictions, average=None)
 
-    def predict_instances(self, x: np.ndarray) -> np.ndarray:
+    def predict_batch(self, x: np.ndarray) -> np.ndarray:
         pass
 
     def predict_instance(self, x: np.ndarray) -> np.ndarray:
@@ -71,7 +75,7 @@ class Model:
         pass
 
     @staticmethod
-    def make_prediction(instance_ids: pd.Series, models: List['Model'], depth: int, series: str = "train_series") -> Dict[str, np.ndarray]:
+    def make_prediction(instance_ids: pd.Series, models: List['Model'], depth: int, series: str = "train_series") -> pd.DataFrame:
         """
 
         :param instance_ids: id for each instance being predicted
@@ -116,7 +120,18 @@ class Model:
             weights = Model.calculate_weights(auc_scores)
             final_predictions[id_] = Model.apply_weights(weights, predictions)
 
-        return final_predictions
+        return pd.DataFrame.from_dict(final_predictions, orient='index').reset_index()
+
+    @staticmethod
+    def get_ensemble_auc_score(models: List['Model'], depth: int):
+        pred_ = Model.make_prediction(test_ids, models, depth).sort_values(by='StudyInstanceUID')
+        true_ = train_df[train_df["StudyInstanceUID"].isin(test_ids)].sort_values(by='StudyInstanceUID')
+
+        pred_ = pred_.drop(columns=["StudyInstanceUID"]).to_numpy()
+        true_ = true_[target_columns].to_numpy()
+
+        return roc_auc_score(true_, pred_, average=None)
+
 
     @staticmethod
     def calculate_weights(auc_scores: list):
