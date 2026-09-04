@@ -1,5 +1,4 @@
 import os
-os.environ['KAGGLE_API_TOKEN'] = 'KGAT_11d286a48ad18aa0b42878afc9c3620d'
 import pandas as pd
 from kaggle.api.kaggle_api_extended import KaggleApi
 

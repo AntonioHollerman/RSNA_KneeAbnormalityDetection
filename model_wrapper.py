@@ -32,6 +32,8 @@ for train_index, test_index in msss.split(X, Y):
     train_ids = X[train_index].flatten()
     test_ids = X[test_index].flatten()
 
+print(f"# of Training Instances: {len(train_ids)}")
+print(f"# of Testing Instances: {len(test_ids)}")
 # 4. Filter your full dataframe using the newly stratified IDs
 train_full = full_df[full_df["StudyInstanceUID"].isin(train_ids)]
 test_full = full_df[full_df["StudyInstanceUID"].isin(test_ids)]
@@ -98,12 +100,16 @@ class Model:
 
             for _, study in studies.iterrows():
                 for m in models:
+                    folder_path = (series + "/" +
+                                   study["StudyInstanceUID"] + "/" +
+                                   study["SeriesInstanceUID"])
+
+                    img_count = len(os.listdir(folder_path))
+                    if img_count < MIN_IMG_COUNT:
+                        continue
+
                     if depth == 1:
                         if study["Anatomical_Plane"] == m.anatomical_plane:
-                            folder_path = (series + "/" +
-                                study["StudyInstanceUID"] + "/" +
-                                study["SeriesInstanceUID"])
-
                             auc_scores.append(m.auc_scores)
                             predictions.append(m.predict_instance(get_training_instance(folder_path)))
                     else:
@@ -111,9 +117,6 @@ class Model:
                                 study["Fluid_Sensitive"] == m.fluid_sensitive and
                                 study["Fat_Suppression"] == m.fat_suppression):
 
-                            folder_path = (series + "/" +
-                                           study["StudyInstanceUID"] + "/" +
-                                           study["SeriesInstanceUID"])
                             auc_scores.append(m.auc_scores)
                             predictions.append(m.predict_instance(get_training_instance(folder_path)))
 
