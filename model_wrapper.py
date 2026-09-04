@@ -124,10 +124,10 @@ class Model:
 
     @staticmethod
     def get_ensemble_auc_score(models: List['Model'], depth: int):
-        pred_ = Model.make_prediction(test_ids, models, depth).sort_values(by='StudyInstanceUID')
+        pred_ = Model.make_prediction(test_ids, models, depth).sort_values(by='index')
         true_ = train_df[train_df["StudyInstanceUID"].isin(test_ids)].sort_values(by='StudyInstanceUID')
 
-        pred_ = pred_.drop(columns=["StudyInstanceUID"]).to_numpy()
+        pred_ = pred_.drop(columns=["index"]).to_numpy()
         true_ = true_[target_columns].to_numpy()
 
         return roc_auc_score(true_, pred_, average=None)
