@@ -12,7 +12,7 @@ os.chdir(target_dir)
 target_columns = ['ACL', 'MCL', 'Medial Meniscus', 'Lateral Meniscus', 'Medial OA',
        'Lateral OA', 'PF OA', 'Effusion', 'Synovitis', "Baker's", 'Contusion',
        'Fracture']
-MIN_IMG_COUNT = 18
+MIN_IMG_COUNT = 12
 def print_memory_usage():
     process = psutil.Process(os.getpid())
     mem_bytes = process.memory_info().rss

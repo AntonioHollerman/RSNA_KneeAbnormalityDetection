@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from helper_functions import *
@@ -43,37 +44,48 @@ print_memory_usage()
 # TODO: Implement incremental learning
 class Model:
 
-    def __init__(self, anatomical_plane, fluid_sensitive = None, fat_suppression = None, train_full_batch=True):
+    def __init__(self, anatomical_plane, fluid_sensitive = None, fat_suppression = None, full_train=True):
         self.auc_scores = np.zeros(len(target_columns))
         self.fluid_sensitive = fluid_sensitive
         self.fat_suppression = fat_suppression
         self.anatomical_plane = anatomical_plane
 
-        if not train_full_batch:
-            return
+        print(f"""Training Model: 
+\tPlane: {self.anatomical_plane}
+\tFluid Sensitive: {self.fluid_sensitive}
+\tFat Suppression: {self.fat_suppression}""")
+        if full_train:
+            X, y = get_data(train_full, "train_series", anatomical_plane, fluid_sensitive, fat_suppression)
 
-        if fluid_sensitive is None or fat_suppression is None:
-            x_train, y_train = get_data(train_full, "train_series", anatomical_plane)
-            x_test, y_test = get_data(test_full, "train_series", anatomical_plane)
-        else:
-            x_train, y_train = get_data(train_full, "train_series", anatomical_plane,
-                            fluid_sensitive=fluid_sensitive,
-                            fat_suppression=fat_suppression)
-            x_test, y_test = get_data(test_full, "train_series", anatomical_plane,
-                            fluid_sensitive=fluid_sensitive,
-                            fat_suppression=fat_suppression)
-        self.train(x_train, y_train)
+            msss_ = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=0.35, random_state=42)
+            train_index, validation_index = next(msss_.split(X=X, y=y))
 
-        predictions = self.predict_batch(x_test)
-        self.auc_scores = roc_auc_score(y_test, predictions, average=None)
+            X_train = X[train_index]
+            X_validation = X[validation_index]
 
+            y_train = y[train_index]
+            y_validation = y[validation_index]
+
+            print(f"\tTraining Shape: {X_train.shape}")
+            print(f"\tValidation Shape: {X_validation.shape}")
+            self.full_fit(X_train, y_train)
+            y_pred = self.predict_batch(X_validation)
+            self.auc_scores = roc_auc_score(y_validation, y_pred, average=None)
+
+            print(f"\tAUC Score: {np.mean(self.auc_scores)}")
+            for i in range(len(target_columns)):
+                print(f"\t\t{target_columns[i]}: {self.auc_scores[i]}")
+            print()
+
+    def full_fit(self, x: np.ndarray, y: np.ndarray):
+        pass
+
+    def batch_fit(self, training_folders: pd.Series):
+        pass
     def predict_batch(self, x: np.ndarray) -> np.ndarray:
         pass
 
     def predict_instance(self, x: np.ndarray) -> np.ndarray:
-        pass
-
-    def train(self, x: np.ndarray, y: np.ndarray):
         pass
 
     @staticmethod
