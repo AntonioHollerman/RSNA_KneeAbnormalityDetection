@@ -20,6 +20,9 @@ def print_memory_usage():
 
     print(f"Current RAM usage: {mem_mb:.2f} MB")
 
+def get_img_count(folder_path):
+    return len([os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith('.dcm')])
+
 def get_instance_number(filepath):
     try:
         return pydicom.dcmread(filepath, stop_before_pixels=True).InstanceNumber

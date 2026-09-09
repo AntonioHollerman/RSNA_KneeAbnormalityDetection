@@ -80,7 +80,7 @@ class Model:
     def full_fit(self, x: np.ndarray, y: np.ndarray):
         pass
 
-    def batch_fit(self, training_folders: pd.Series):
+    def batch_fit(self, training_folders: pd.Series, y: np.ndarray):
         pass
     def predict_batch(self, x: np.ndarray) -> np.ndarray:
         pass
