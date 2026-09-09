@@ -108,7 +108,7 @@ def get_training_instance(folder_path):
 
 
 def get_data(df: pd.DataFrame, series, anatomical_plane, fluid_sensitive = None, fat_suppression = None,
-             filter_len=True, get_target_columns=True):
+             filter_len=True, get_target_columns=True, get_folder_paths=False):
 
     def check_len(path):
         return len(os.listdir(path)) >= MIN_IMG_COUNT
@@ -134,5 +134,8 @@ def get_data(df: pd.DataFrame, series, anatomical_plane, fluid_sensitive = None,
     folder_paths = (series + "/" +
                     filtered_df["StudyInstanceUID"] + "/" +
                     filtered_df["SeriesInstanceUID"])
+
+    if get_folder_paths:
+        return folder_paths, np.array(filtered_df[target_columns])
     return (np.array([get_training_instance(path) for path in folder_paths]),
             np.array(filtered_df[target_columns]) if get_target_columns else None)

@@ -7,6 +7,7 @@ from typing import List, Dict
 from sklearn.metrics import roc_auc_score
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 
+BATCH_SIZE = 20
 planes = ["Sagittal", "Axial", "Coronal"]
 
 study_ids = os.listdir("train_series")
@@ -41,7 +42,6 @@ test_full = full_df[full_df["StudyInstanceUID"].isin(test_ids)]
 
 print_memory_usage()
 
-# TODO: Implement incremental learning
 class Model:
 
     def __init__(self, anatomical_plane, fluid_sensitive = None, fat_suppression = None, full_train=True):
@@ -70,6 +70,41 @@ class Model:
             print(f"\tValidation Shape: {X_validation.shape}")
             self.full_fit(X_train, y_train)
             y_pred = self.predict_batch(X_validation)
+            self.auc_scores = roc_auc_score(y_validation, y_pred, average=None)
+
+            print(f"\tAUC Score: {np.mean(self.auc_scores)}")
+            for i in range(len(target_columns)):
+                print(f"\t\t{target_columns[i]}: {self.auc_scores[i]}")
+            print()
+        else:
+            folders, y = get_data(train_full, "train_series", anatomical_plane, fluid_sensitive, fat_suppression,
+                                  get_folder_paths=True)
+
+            msss_ = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=0.35, random_state=42)
+            train_index, validation_index = next(msss_.split(X=folders, y=y))
+
+            X_train = folders[train_index]
+            X_validation = folders[validation_index]
+
+            y_train = y[train_index]
+            y_validation = y[validation_index]
+
+            print(f"\tTraining Size: {X_train.shape}")
+            print(f"\tValidation Size: {X_validation.shape}")
+            self.batch_fit(X_train, y_train)
+
+            indices = np.arange(len(X_validation))
+            all_batch_predictions = []
+            for batch_idx in np.array_split(indices, 5):
+                folders_batch = X_validation[batch_idx]
+
+                X_batch = np.array([get_training_instance(f) for f in folders_batch])
+                X_batch = np.reshape(X_batch, (X_batch.shape[0], -1))
+                proba_list = self.predict_batch(X_batch)
+                batch_positive_probs = np.column_stack([label_probs[:, 1] for label_probs in proba_list])
+                all_batch_predictions.append(batch_positive_probs)
+
+            y_pred = np.vstack(all_batch_predictions)
             self.auc_scores = roc_auc_score(y_validation, y_pred, average=None)
 
             print(f"\tAUC Score: {np.mean(self.auc_scores)}")
