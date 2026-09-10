@@ -83,8 +83,8 @@ class Model:
             msss_ = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=0.35, random_state=42)
             train_index, validation_index = next(msss_.split(X=folders, y=y))
 
-            X_train = folders[train_index]
-            X_validation = folders[validation_index]
+            X_train = folders.iloc[train_index]
+            X_validation = folders.iloc[validation_index]
 
             y_train = y[train_index]
             y_validation = y[validation_index]
@@ -96,13 +96,11 @@ class Model:
             indices = np.arange(len(X_validation))
             all_batch_predictions = []
             for batch_idx in np.array_split(indices, 5):
-                folders_batch = X_validation[batch_idx]
+                folders_batch = X_validation.iloc[batch_idx]
 
                 X_batch = np.array([get_training_instance(f) for f in folders_batch])
                 X_batch = np.reshape(X_batch, (X_batch.shape[0], -1))
-                proba_list = self.predict_batch(X_batch)
-                batch_positive_probs = np.column_stack([label_probs[:, 1] for label_probs in proba_list])
-                all_batch_predictions.append(batch_positive_probs)
+                all_batch_predictions.append(self.predict_batch(X_batch))
 
             y_pred = np.vstack(all_batch_predictions)
             self.auc_scores = roc_auc_score(y_validation, y_pred, average=None)
