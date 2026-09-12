@@ -7,7 +7,9 @@ from typing import List, Dict
 from sklearn.metrics import roc_auc_score
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 
-BATCH_SIZE = 20
+BATCH_SIZE = 5
+AUC_THRESHOLD = 0.45
+
 planes = ["Sagittal", "Axial", "Coronal"]
 
 study_ids = os.listdir("train_series")
@@ -91,7 +93,7 @@ class Model:
 
             print(f"\tTraining Size: {X_train.shape}")
             print(f"\tValidation Size: {X_validation.shape}")
-            self.batch_fit(X_train, y_train)
+            self.batch_fit(X_train, y_train, X_validation, y_validation)
 
             indices = np.arange(len(X_validation))
             all_batch_predictions = []
@@ -99,7 +101,6 @@ class Model:
                 folders_batch = X_validation.iloc[batch_idx]
 
                 X_batch = np.array([get_training_instance(f) for f in folders_batch])
-                X_batch = np.reshape(X_batch, (X_batch.shape[0], -1))
                 all_batch_predictions.append(self.predict_batch(X_batch))
 
             y_pred = np.vstack(all_batch_predictions)
@@ -113,7 +114,7 @@ class Model:
     def full_fit(self, x: np.ndarray, y: np.ndarray):
         pass
 
-    def batch_fit(self, training_folders: pd.Series, y: np.ndarray):
+    def batch_fit(self, training_folders: pd.Series, y_train: np.ndarray, validation_folders: pd.Series, y_validation: np.ndarray):
         pass
     def predict_batch(self, x: np.ndarray) -> np.ndarray:
         pass
@@ -155,14 +156,14 @@ class Model:
 
                     if depth == 1:
                         if study["Anatomical_Plane"] == m.anatomical_plane:
-                            auc_scores.append(m.auc_scores)
+                            auc_scores.append(np.copy(m.auc_scores))
                             predictions.append(m.predict_instance(get_training_instance(folder_path)))
                     else:
                         if (study["Anatomical_Plane"] == m.anatomical_plane and
                                 study["Fluid_Sensitive"] == m.fluid_sensitive and
                                 study["Fat_Suppression"] == m.fat_suppression):
 
-                            auc_scores.append(m.auc_scores)
+                            auc_scores.append(np.copy(m.auc_scores))
                             predictions.append(m.predict_instance(get_training_instance(folder_path)))
 
             weights = Model.calculate_weights(auc_scores)
@@ -185,6 +186,21 @@ class Model:
     def calculate_weights(auc_scores: list):
 
         weights = [[] for _ in range(len(auc_scores))]
+
+        for i in range(len(target_columns)):
+            highest_auc = 0.0
+            highest_pos = -1
+
+            for j in range(len(auc_scores)):
+                if auc_scores[j][i] > highest_auc:
+                    highest_auc = auc_scores[j][i]
+                    highest_pos = j
+
+                if auc_scores[j][i] < AUC_THRESHOLD:
+                    auc_scores[j][i] = 0.0
+
+            if highest_auc < AUC_THRESHOLD:
+                auc_scores[highest_pos][i] = AUC_THRESHOLD
 
         for i in range(len(target_columns)):
             auc_sum = 0

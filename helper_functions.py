@@ -12,7 +12,10 @@ os.chdir(target_dir)
 target_columns = ['ACL', 'MCL', 'Medial Meniscus', 'Lateral Meniscus', 'Medial OA',
        'Lateral OA', 'PF OA', 'Effusion', 'Synovitis', "Baker's", 'Contusion',
        'Fracture']
-MIN_IMG_COUNT = 12
+MIN_IMG_COUNT = 18
+IMG_HEIGHT = 512
+IMG_WIDTH = 512
+
 def print_memory_usage():
     process = psutil.Process(os.getpid())
     mem_bytes = process.memory_info().rss
@@ -99,7 +102,7 @@ def get_training_instance(folder_path):
         img = pydicom.dcmread(file).pixel_array
 
         # Enforce 512x512 dimension (cv2.resize expects width x height)
-        img_resized = cv2.resize(img, (512, 512), interpolation=cv2.INTER_LINEAR)
+        img_resized = cv2.resize(img, (IMG_WIDTH, IMG_HEIGHT), interpolation=cv2.INTER_LINEAR)
 
         # Apply your scaling step and append
         processed_slices.append(scale_img_array(img_resized))
