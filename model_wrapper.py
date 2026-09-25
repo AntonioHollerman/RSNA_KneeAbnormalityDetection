@@ -8,7 +8,7 @@ from sklearn.metrics import roc_auc_score
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 
 BATCH_SIZE = 5
-AUC_THRESHOLD = 0.45
+AUC_THRESHOLD = 0.6
 
 planes = ["Sagittal", "Axial", "Coronal"]
 
@@ -46,7 +46,7 @@ print_memory_usage()
 
 class Model:
 
-    def __init__(self, anatomical_plane, fluid_sensitive = None, fat_suppression = None, full_train=True):
+    def __init__(self, anatomical_plane, fluid_sensitive = None, fat_suppression = None, full_train=True, no_valid=False):
         self.auc_scores = np.zeros(len(target_columns))
         self.fluid_sensitive = fluid_sensitive
         self.fat_suppression = fat_suppression
@@ -59,20 +59,26 @@ class Model:
         if full_train:
             X, y = get_data(train_full, "train_series", anatomical_plane, fluid_sensitive, fat_suppression)
 
-            msss_ = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=0.35, random_state=42)
-            train_index, validation_index = next(msss_.split(X=X, y=y))
+            if no_valid:
+                print(f"\tTraining Shape: {X.shape}")
+                self.full_fit(X, y)
+                y_pred = self.predict_batch(X)
+                self.auc_scores = roc_auc_score(y, y_pred, average=None) * 0.85
+            else:
+                msss_ = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=0.35, random_state=42)
+                train_index, validation_index = next(msss_.split(X=X, y=y))
 
-            X_train = X[train_index]
-            X_validation = X[validation_index]
+                X_train = X[train_index]
+                X_validation = X[validation_index]
 
-            y_train = y[train_index]
-            y_validation = y[validation_index]
+                y_train = y[train_index]
+                y_validation = y[validation_index]
 
-            print(f"\tTraining Shape: {X_train.shape}")
-            print(f"\tValidation Shape: {X_validation.shape}")
-            self.full_fit(X_train, y_train)
-            y_pred = self.predict_batch(X_validation)
-            self.auc_scores = roc_auc_score(y_validation, y_pred, average=None)
+                print(f"\tTraining Shape: {X_train.shape}")
+                print(f"\tValidation Shape: {X_validation.shape}")
+                self.full_fit(X_train, y_train)
+                y_pred = self.predict_batch(X_validation)
+                self.auc_scores = roc_auc_score(y_validation, y_pred, average=None)
 
             print(f"\tAUC Score: {np.mean(self.auc_scores)}")
             for i in range(len(target_columns)):
@@ -82,18 +88,24 @@ class Model:
             folders, y = get_data(train_full, "train_series", anatomical_plane, fluid_sensitive, fat_suppression,
                                   get_folder_paths=True)
 
-            msss_ = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=0.35, random_state=42)
-            train_index, validation_index = next(msss_.split(X=folders, y=y))
+            if no_valid:
+                X_validation = folders
+                y_validation = y
+                print(f"\tTraining Size: {folders.shape}")
+                self.batch_fit(folders, y, None, None)
+            else:
+                msss_ = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=0.35, random_state=42)
+                train_index, validation_index = next(msss_.split(X=folders, y=y))
 
-            X_train = folders.iloc[train_index]
-            X_validation = folders.iloc[validation_index]
+                X_train = folders.iloc[train_index]
+                X_validation = folders.iloc[validation_index]
 
-            y_train = y[train_index]
-            y_validation = y[validation_index]
+                y_train = y[train_index]
+                y_validation = y[validation_index]
 
-            print(f"\tTraining Size: {X_train.shape}")
-            print(f"\tValidation Size: {X_validation.shape}")
-            self.batch_fit(X_train, y_train, X_validation, y_validation)
+                print(f"\tTraining Size: {X_train.shape}")
+                print(f"\tValidation Size: {X_validation.shape}")
+                self.batch_fit(X_train, y_train, X_validation, y_validation)
 
             indices = np.arange(len(X_validation))
             all_batch_predictions = []
@@ -104,7 +116,10 @@ class Model:
                 all_batch_predictions.append(self.predict_batch(X_batch))
 
             y_pred = np.vstack(all_batch_predictions)
-            self.auc_scores = roc_auc_score(y_validation, y_pred, average=None)
+            if no_valid:
+                self.auc_scores = roc_auc_score(y_validation, y_pred, average=None) * 0.85
+            else:
+                self.auc_scores = roc_auc_score(y_validation, y_pred, average=None)
 
             print(f"\tAUC Score: {np.mean(self.auc_scores)}")
             for i in range(len(target_columns)):
