@@ -44,7 +44,7 @@ test_full = full_df[full_df["StudyInstanceUID"].isin(test_ids)]
 
 print_memory_usage()
 
-class Model:
+class MultiLabelModel:
 
     def __init__(self, anatomical_plane, fluid_sensitive = None, fat_suppression = None, full_train=True, no_valid=False):
         self.auc_scores = np.zeros(len(target_columns))
@@ -138,7 +138,7 @@ class Model:
         pass
 
     @staticmethod
-    def make_prediction(instance_ids: pd.Series, models: List['Model'], depth: int, series: str = "train_series") -> pd.DataFrame:
+    def make_prediction(instance_ids: pd.Series, models: List['MultiLabelModel'], depth: int, series: str = "train_series") -> pd.DataFrame:
         """
 
         :param instance_ids: id for each instance being predicted
@@ -181,14 +181,14 @@ class Model:
                             auc_scores.append(np.copy(m.auc_scores))
                             predictions.append(m.predict_instance(get_training_instance(folder_path)))
 
-            weights = Model.calculate_weights(auc_scores)
-            final_predictions[id_] = Model.apply_weights(weights, predictions)
+            weights = MultiLabelModel.calculate_weights(auc_scores)
+            final_predictions[id_] = MultiLabelModel.apply_weights(weights, predictions)
 
         return pd.DataFrame.from_dict(final_predictions, orient='index').reset_index()
 
     @staticmethod
-    def get_ensemble_auc_score(models: List['Model'], depth: int):
-        pred_ = Model.make_prediction(test_ids, models, depth).sort_values(by='index')
+    def get_ensemble_auc_score(models: List['MultiLabelModel'], depth: int):
+        pred_ = MultiLabelModel.make_prediction(test_ids, models, depth).sort_values(by='index')
         true_ = train_df[train_df["StudyInstanceUID"].isin(test_ids)].sort_values(by='StudyInstanceUID')
 
         pred_ = pred_.drop(columns=["index"]).to_numpy()
