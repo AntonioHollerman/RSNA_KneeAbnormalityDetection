@@ -8,8 +8,8 @@ from sklearn.metrics import roc_auc_score
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 
-BATCH_SIZE = 5
-AUC_THRESHOLD = 0.6
+BATCH_SIZE = 12
+AUC_THRESHOLD = 0.45
 
 planes = ["Sagittal", "Axial", "Coronal"]
 
@@ -152,38 +152,41 @@ class MultiLabelModel:
         final_predictions = {}
 
         for id_ in instance_ids:
-            auc_scores = []
-            predictions = []
+            try:
+                auc_scores = []
+                predictions = []
 
-            if series == "train_series":
-                studies = train_series_df[train_series_df["StudyInstanceUID"] == id_]
-            else:
-                studies = test_series_df[test_series_df["StudyInstanceUID"] == id_]
+                if series == "train_series":
+                    studies = train_series_df[train_series_df["StudyInstanceUID"] == id_]
+                else:
+                    studies = test_series_df[test_series_df["StudyInstanceUID"] == id_]
 
-            for _, study in studies.iterrows():
-                folder_path = (series + "/" +
-                               study["StudyInstanceUID"] + "/" +
-                               study["SeriesInstanceUID"])
+                for _, study in studies.iterrows():
+                    folder_path = (series + "/" +
+                                   study["StudyInstanceUID"] + "/" +
+                                   study["SeriesInstanceUID"])
 
-                img_count = len(os.listdir(folder_path))
-                if img_count < MIN_IMG_COUNT:
-                    continue
+                    img_count = len(os.listdir(folder_path))
+                    if img_count < MIN_IMG_COUNT:
+                        continue
 
-                for m in models:
-                    if depth == 1:
-                        if study["Anatomical_Plane"] == m.anatomical_plane:
-                            auc_scores.append(np.copy(m.auc_scores))
-                            predictions.append(m.predict_instance(get_training_instance(folder_path)))
-                    else:
-                        if (study["Anatomical_Plane"] == m.anatomical_plane and
-                                study["Fluid_Sensitive"] == m.fluid_sensitive and
-                                study["Fat_Suppression"] == m.fat_suppression):
+                    for m in models:
+                        if depth == 1:
+                            if study["Anatomical_Plane"] == m.anatomical_plane:
+                                auc_scores.append(np.copy(m.auc_scores))
+                                predictions.append(m.predict_instance(get_training_instance(folder_path)))
+                        else:
+                            if (study["Anatomical_Plane"] == m.anatomical_plane and
+                                    (study["Fluid_Sensitive"] == m.fluid_sensitive or m.fluid_sensitive is None) and
+                                    (study["Fat_Suppression"] == m.fat_suppression or m.fat_suppression is None)):
 
-                            auc_scores.append(np.copy(m.auc_scores))
-                            predictions.append(m.predict_instance(get_training_instance(folder_path)))
+                                auc_scores.append(np.copy(m.auc_scores))
+                                predictions.append(m.predict_instance(get_training_instance(folder_path)))
 
-            weights = MultiLabelModel.calculate_weights(auc_scores)
-            final_predictions[id_] = MultiLabelModel.apply_weights(weights, predictions)
+                weights = MultiLabelModel.calculate_weights(auc_scores)
+                final_predictions[id_] = MultiLabelModel.apply_weights(weights, predictions)
+            except IndexError:
+                print(f"Index error for: {id_}")
 
         return pd.DataFrame.from_dict(final_predictions, orient='index').reset_index()
 
@@ -430,3 +433,7 @@ class BinaryModel:
         true_ = true_[target_columns].to_numpy()
 
         return roc_auc_score(true_, pred_, average=None)
+
+models_arch = {
+    "ACL": None,
+}

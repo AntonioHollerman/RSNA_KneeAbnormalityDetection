@@ -13,8 +13,8 @@ target_columns = ['ACL', 'MCL', 'Medial Meniscus', 'Lateral Meniscus', 'Medial O
        'Lateral OA', 'PF OA', 'Effusion', 'Synovitis', "Baker's", 'Contusion',
        'Fracture']
 MIN_IMG_COUNT = 18
-IMG_HEIGHT = 512
-IMG_WIDTH = 512
+IMG_HEIGHT = 224
+IMG_WIDTH = 224
 
 def print_memory_usage():
     process = psutil.Process(os.getpid())
